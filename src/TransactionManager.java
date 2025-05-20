@@ -4,46 +4,66 @@ import java.util.*;
 
 public class TransactionManager {
     private List<Transaction> transactions = new ArrayList<>();
+    private final String filePath = "data/transactions.txt";
 
-    public void addTransaction(Transaction transaction) {
-        transactions.add(transaction);
+    public TransactionManager() {
+        loadFromFile();
     }
 
-    public void loadFromFile(String filePath) throws IOException {
-        BufferedReader reader = new BufferedReader(new FileReader(filePath));
-        String line;
-        while ((line = reader.readLine()) != null) {
-            transactions.add(Transaction.fromString(line));
+    public void addTransaction(Transaction t) {
+        transactions.add(t);
+        saveToFile();
+    }
+
+    public void loadFromFile() {
+        File file = new File(filePath);
+        if (!file.exists()) return;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                transactions.add(Transaction.fromString(line));
+            }
+        } catch (IOException e) {
+            System.out.println("Error reading file: " + e.getMessage());
         }
-        reader.close();
     }
 
-    public void saveToFile(String filePath) throws IOException {
-        BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
-        for (Transaction t : transactions) {
-            writer.write(t.toString());
-            writer.newLine();
+    public void saveToFile() {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath))) {
+            for (Transaction t : transactions) {
+                bw.write(t.toString());
+                bw.newLine();
+            }
+        } catch (IOException e) {
+            System.out.println("Error writing file: " + e.getMessage());
         }
-        writer.close();
     }
 
-    public void printMonthlySummary(int year, int month) {
-        double incomeTotal = 0, expenseTotal = 0;
-
-        System.out.println("Monthly Summary for " + Month.of(month) + " " + year + ":");
+    public void showMonthlySummary(int month) {
+        double totalIncome = 0;
+        double totalExpense = 0;
+        Map<String, Double> categoryTotals = new HashMap<>();
 
         for (Transaction t : transactions) {
-            if (t.getDate().getYear() == year && t.getDate().getMonthValue() == month) {
-                System.out.println(t);
-                if (t.getType().equalsIgnoreCase("Income"))
-                    incomeTotal += t.getAmount();
-                else
-                    expenseTotal += t.getAmount();
+            if (t.getDate().getMonthValue() == month) {
+                if (t.getType().equalsIgnoreCase("Income")) {
+                    totalIncome += t.getAmount();
+                } else {
+                    totalExpense += t.getAmount();
+                }
+
+                categoryTotals.put(t.getCategory(),
+                    categoryTotals.getOrDefault(t.getCategory(), 0.0) + t.getAmount());
             }
         }
 
-        System.out.println("Total Income: " + incomeTotal);
-        System.out.println("Total Expenses: " + expenseTotal);
-        System.out.println("Net Savings: " + (incomeTotal - expenseTotal));
+        System.out.println("\n--- Monthly Summary for " + Month.of(month) + " ---");
+        System.out.println("Total Income: " + totalIncome);
+        System.out.println("Total Expense: " + totalExpense);
+        System.out.println("By Category:");
+        for (Map.Entry<String, Double> entry : categoryTotals.entrySet()) {
+            System.out.println("- " + entry.getKey() + ": " + entry.getValue());
+        }
     }
 }
